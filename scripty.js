@@ -132,7 +132,7 @@ class Wizard extends Character {
     }
 
     attack(target) {
-        let updatedHitpoints = target.hitpoints - (this.level * 1.5)
+        let updatedHitpoints = target.hitpoints - Math.floor((Math.random() * this.level) + 1)
         target.updateHitpoints(updatedHitpoints)
         this.updateMana(this.mana - 2)
 
@@ -214,7 +214,7 @@ class Warrior extends Character {
     }
 
     attack(target) {
-        let updatedHitpoints = target.hitpoints - this.strength
+        let updatedHitpoints = target.hitpoints - Math.floor((Math.random() * this.strength) + 1)
         target.updateHitpoints(updatedHitpoints)
         this.updateStrength(this.strength - 1)
 
@@ -336,7 +336,8 @@ class Food {
 /* ---------- GAMEPLAY -------------*/
 
 
-const croissant = new Food("🥐", 5)
+const croissant = new Food("🥐", 3)
+const taco = new Food("🌮", 5)
 const bacon = new Food("🥓", 8)
 const pizza = new Food("🍕", 10)
 
@@ -352,27 +353,76 @@ const dragon = new Dragon(10)
 
 
 
-const startBattle = (player, opponent) => {
-    document.body.innerHTML = `
-        ${player.view()}
-        <button id = "attack-button"> Attack </button>
-        ${opponent.view()}
-    `
-    player.initializeInventory()
-    player.prepareForBattle()
-    document.getElementById("attack-button").onclick = () => {
-        player.attack(opponent)
+class Dungeon {
+    constructor(hero, enemies) {
+        let [ currentEnemy, ...remainingEnemies ] = enemies
+        Object.assign(this, {hero, currentEnemy, remainingEnemies })
+    }
 
-        if (isKnockedOut(opponent)) {
-            endBattle(player)
+    start() {
+        this.startBattle()
+    }
+
+    next() {
+        let [ currentEnemy, ...remainingEnemies ] = this.remainingEnemies
+        Object.assign(this, {currentEnemy, remainingEnemies})
+        if (remainingEnemies.length == 0) {
+            this.hero.pickup(currentEnemy)
+            this.end()
         } else {
-            opponent.attack(player)
+            this.startBattle()
+        }
+
+    }
+
+    startBattle() {
+        let { hero, currentEnemy } = this
+        document.body.innerHTML = `
+            ${hero.view()}
+            <button id = "attack-button"> Attack </button>
+            ${currentEnemy.view()}
+        `
+        hero.initializeInventory()
+        hero.prepareForBattle()
+        document.getElementById("attack-button").onclick = () => {
+            hero.attack(currentEnemy)
+    
+            if (isKnockedOut(currentEnemy)) {
+                this.endBattle(hero)
+            } else {
+                currentEnemy.attack(hero)
+            }
         }
     }
+
+
+    endBattle() {
+        let { hero } = this
+        if (!isKnockedOut(hero)) {
+            hero.levelUp()
+        }
+    
+        document.body.innerHTML = `
+            ${hero.view()}
+            <button id = "next-battle">Start Next Battle</button>
+        `
+        document.getElementById("next-battle").onclick = () => {
+            this.next()
+        }
+    }
+
+    end() {
+        document.body.innerHTML =  `
+        ${this.hero.view()}
+        <h2>You won. That's all. Go home.</h2>
+        `  
+    }
+
 }
 
 
-const isKnockedOut = (character) => (character.hitpoints <= 0)
+
+isKnockedOut = (character) => (character.hitpoints <= 0)
 // non-arrow function for reference
 
 //function isKnockedOut(character) {
@@ -383,16 +433,8 @@ const isKnockedOut = (character) => (character.hitpoints <= 0)
  //   }
 //}
 
-const endBattle = (character) => {
-    if (!isKnockedOut(character)) {
-        character.levelUp()
-    }
 
-    document.body.innerHTML = `
-        ${character.view()}
-        <button id = "next-battle">Start Next Battle</button>
-    `
-}
+
 heloise.pickup(croissant)
 heloise.pickup(pizza)
 heloise.pickup(bacon)
@@ -401,23 +443,19 @@ jimbo.pickup(croissant)
 jimbo.pickup(pizza)
 jimbo.pickup(bacon)
 
-let newDungeon = [
+let newDungeon = new Dungeon(jimbo,  [
     new Spider(1),
     new Spider(2),
-    new Spider(3),
+    new Spider(2),
+    new Scorpion(3),
     new Scorpion(5),
     new Croc(7),
     new Food("🍯", 20)
-]
+])
 
-function startDungeon(player, dungeon) {
-    let [ firstOpponent, ...otherOpponents ] = dungeon
-    startBattle(player, firstOpponent)
-    console.log(otherOpponents)
-}
 
-//let [ firstFood, ...leftovers ] = heloise.inventory
-startDungeon(jimbo, newDungeon)
+newDungeon.start()
+
 //startBattle(heloise, scorpion)
 
 
